@@ -909,8 +909,16 @@ async function copyPageText(panelIdx) {
 /* =====================================================================
    SETTINGS
 ===================================================================== */
-document.getElementById('stack-toggle-btn').addEventListener('click', () => {
+document.getElementById('stack-toggle-btn').addEventListener('click', e => {
+  e.stopPropagation();
   document.body.classList.toggle('show-stack');
+});
+
+// スタック表示中にスタック外をタップしたら閉じる（モバイル）
+document.addEventListener('click', e => {
+  if (!document.body.classList.contains('show-stack')) return;
+  if (e.target.closest('#sidebar') || e.target.closest('#stack-toggle-btn')) return;
+  document.body.classList.remove('show-stack');
 });
 
 document.getElementById('settings-btn').addEventListener('click', openSettings);
