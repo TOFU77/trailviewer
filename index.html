@@ -521,20 +521,29 @@
 ===================================================================== */
 const WIKI_BASE = 'https://ja.wikipedia.org';
 
+// kind: 'mediawiki' … APIで本文HTMLを取得し画面内に展開（Wikipedia同等。リンク追跡・足跡記録可）
+//        apiBase に MediaWiki サイトのオリジンを指定。
+//       'google'   … site: 指定の Google 検索を iframe 表示（枠固定・枠内リンクは追跡不可）
 const PRESET_SOURCES = [
-  { id: 'wikipedia',    name: 'Wikipedia',           site: '',                               defaultOn: true  },
-  { id: 'sennyasensatsu', name: '千夜千冊',          site: 'site:1000ya.isis.ne.jp',         defaultOn: true  },
-  { id: 'sekaishi',     name: '世界史の窓',          site: 'site:www.y-history.net',         defaultOn: true  },
-  { id: 'wired',        name: 'WIRED',               site: 'site:wired.jp',                  defaultOn: false },
-  { id: 'qiita',        name: 'Qiita',               site: 'site:qiita.com',                 defaultOn: false },
-  { id: 'note',         name: 'Note',                site: 'site:note.com',                  defaultOn: false },
-  { id: 'aristoteles',  name: 'アリストテレスの本棚', site: 'site:aristoteles-bookshelf.com', defaultOn: false },
-  { id: 'britannica',   name: 'ブリタニカ',          site: 'site:britannica.com',            defaultOn: false },
-  { id: 'stanford',     name: 'スタンフォード哲学百科', site: 'site:plato.stanford.edu',      defaultOn: false },
-  { id: 'ndl',          name: '国立国会図書館デジタル', site: 'site:dl.ndl.go.jp',            defaultOn: false },
-  { id: 'minnichi',     name: 'みんなの日本語教育',   site: 'site:www.nhk.or.jp',             defaultOn: false },
-  { id: 'nikkeibiz',    name: '日経ビジネス',         site: 'site:business.nikkei.com',       defaultOn: false },
+  // --- API型（MediaWiki） ---
+  { id: 'wikipedia',    name: 'Wikipedia（日）',     kind: 'mediawiki', apiBase: 'https://ja.wikipedia.org',  defaultOn: true  },
+  { id: 'wikipedia_en', name: 'Wikipedia（英）',     kind: 'mediawiki', apiBase: 'https://en.wikipedia.org',  defaultOn: false },
+  { id: 'wiktionary',   name: 'ウィクショナリー（日）', kind: 'mediawiki', apiBase: 'https://ja.wiktionary.org', defaultOn: false },
+  // --- iframe型（Google site: 検索） ---
+  { id: 'sennyasensatsu', name: '千夜千冊',          kind: 'google', site: 'site:1000ya.isis.ne.jp',         defaultOn: true  },
+  { id: 'sekaishi',     name: '世界史の窓',          kind: 'google', site: 'site:www.y-history.net',         defaultOn: true  },
+  { id: 'wired',        name: 'WIRED',               kind: 'google', site: 'site:wired.jp',                  defaultOn: false },
+  { id: 'aristoteles',  name: 'アリストテレスの本棚', kind: 'google', site: 'site:aristoteles-bookshelf.com', defaultOn: false },
+  { id: 'britannica',   name: 'ブリタニカ',          kind: 'google', site: 'site:britannica.com',            defaultOn: false },
+  { id: 'stanford',     name: 'スタンフォード哲学百科', kind: 'google', site: 'site:plato.stanford.edu',      defaultOn: false },
+  { id: 'ndl',          name: '国立国会図書館デジタル', kind: 'google', site: 'site:dl.ndl.go.jp',            defaultOn: false },
+  { id: 'minnichi',     name: 'みんなの日本語教育',   kind: 'google', site: 'site:www.nhk.or.jp',             defaultOn: false },
+  { id: 'nikkeibiz',    name: '日経ビジネス',         kind: 'google', site: 'site:business.nikkei.com',       defaultOn: false },
 ];
+
+function findSource(id) {
+  return [...PRESET_SOURCES, ...(srcSettings.custom || [])].find(s => s.id === id);
+}
 
 /* =====================================================================
    STATE
@@ -701,10 +710,10 @@ picker.querySelectorAll('.pp-btn').forEach(btn => {
     if (!act) return;
     if (newLayout !== layout) setLayout(newLayout);
     if (act.type === 'wiki') {
-      loadPage(act.title, panelIdx);
+      loadPage(act.title, panelIdx, act.apiBase);
     } else if (act.type === 'wikisearch') {
       if (panelIdx >= layout) setLayout(panelIdx + 1);
-      doWikiSearch(act.query, panelIdx);
+      doWikiSearch(act.query, panelIdx, act.apiBase);
     } else if (act.type === 'iframe') {
       loadIframe(panelIdx, act.url, act.title);
     } else {
@@ -733,22 +742,24 @@ function doSearch(e) {
   if (!query) return;
   const srcId = document.getElementById('source-select').value;
 
-  if (srcId === 'wikipedia') {
-    // 全文一致でなく候補リストを出すため、まず開く先のパネルを選ばせる
-    showPicker(e, { type: 'wikisearch', query });
+  const src = findSource(srcId);
+  if (!src) return;
+
+  if (src.kind === 'mediawiki') {
+    // 候補リストを出すため、まず開く先のパネルを選ばせる
+    showPicker(e, { type: 'wikisearch', query, apiBase: src.apiBase });
   } else {
-    const src = [...PRESET_SOURCES, ...(srcSettings.custom || [])].find(s => s.id === srcId);
-    if (!src) return;
     const url = `https://www.google.com/search?igu=1&q=${encodeURIComponent(query + ' ' + src.site)}`;
     showPicker(e, { type: 'iframe', url, title: `${src.name}：${query}` });
   }
 }
 
-async function doWikiSearch(query, panelIdx) {
+async function doWikiSearch(query, panelIdx, apiBase) {
+  apiBase = apiBase || WIKI_BASE;
   clearPanel(panelIdx);
   setLoading(panelIdx, true);
   try {
-    const url = `${WIKI_BASE}/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=10&format=json&origin=*`;
+    const url = `${apiBase}/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=10&format=json&origin=*`;
     const data = await fetch(url).then(r => r.json());
     const titles = data[1];
     const ul = panelContent(panelIdx).querySelector('.search-results');
@@ -758,7 +769,7 @@ async function doWikiSearch(query, panelIdx) {
       titles.forEach(title => {
         const li = document.createElement('li');
         li.textContent = title;
-        li.addEventListener('click', e => showPicker(e, { type: 'wiki', title }));
+        li.addEventListener('click', e => showPicker(e, { type: 'wiki', title, apiBase }));
         ul.appendChild(li);
       });
     }
@@ -772,13 +783,14 @@ async function doWikiSearch(query, panelIdx) {
 /* =====================================================================
    PAGE LOAD
 ===================================================================== */
-async function loadPage(title, panelIdx) {
+async function loadPage(title, panelIdx, apiBase) {
+  apiBase = apiBase || WIKI_BASE;
   // If needed, extend layout
   if (panelIdx >= layout) setLayout(panelIdx + 1);
   clearPanel(panelIdx);
   setLoading(panelIdx, true);
   try {
-    const url = `${WIKI_BASE}/w/api.php?action=parse&page=${encodeURIComponent(title)}&prop=text&format=json&origin=*&disableeditsection=1`;
+    const url = `${apiBase}/w/api.php?action=parse&page=${encodeURIComponent(title)}&prop=text&format=json&origin=*&disableeditsection=1`;
     const data = await fetch(url).then(r => r.json());
     if (data.error) { showErr(panelIdx, `「${title}」のページが見つかりませんでした。`); return; }
 
@@ -787,9 +799,10 @@ async function loadPage(title, panelIdx) {
     pushToStack({
       type: 'wikipedia',
       title: pageTitle,
-      url: `${WIKI_BASE}/wiki/${encodeURIComponent(pageTitle.replace(/ /g,'_'))}`
+      apiBase,
+      url: `${apiBase}/wiki/${encodeURIComponent(pageTitle.replace(/ /g,'_'))}`
     });
-    renderWiki(panelIdx, data.parse.text['*']);
+    renderWiki(panelIdx, data.parse.text['*'], apiBase);
   } catch(_) {
     showErr(panelIdx, 'ページの読み込みに失敗しました。');
   } finally {
@@ -797,7 +810,8 @@ async function loadPage(title, panelIdx) {
   }
 }
 
-function renderWiki(panelIdx, html) {
+function renderWiki(panelIdx, html, apiBase) {
+  apiBase = apiBase || WIKI_BASE;
   const pc = panelContent(panelIdx);
   pc.querySelector('.page-toolbar').style.display = 'block';
   const wc = pc.querySelector('.wiki-content');
@@ -816,29 +830,30 @@ function renderWiki(panelIdx, html) {
     const href = a.getAttribute('href');
     if (!href) return;
     // ホバー時のステータスバー表示を正しいWeb URLにする（file://由来の C:\wiki\… を防ぐ）
-    if (href.startsWith('/')) a.href = WIKI_BASE + href;
+    if (href.startsWith('/')) a.href = apiBase + href;
     a.addEventListener('click', e => {
       e.preventDefault();
-      handleLink(e, href);
+      handleLink(e, href, apiBase);
     });
   });
 
   pc.scrollTop = 0;
 }
 
-function handleLink(e, href) {
+function handleLink(e, href, apiBase) {
+  apiBase = apiBase || WIKI_BASE;
   if (href.startsWith('/wiki/')) {
     const rawTitle = decodeURIComponent(href.replace('/wiki/', '')).replace(/_/g, ' ');
     if (rawTitle.includes(':')) {
-      const full = WIKI_BASE + href;
+      const full = apiBase + href;
       showPicker(e, { type: 'external', title: full, url: full });
     } else {
-      showPicker(e, { type: 'wiki', title: rawTitle.split('#')[0] });
+      showPicker(e, { type: 'wiki', title: rawTitle.split('#')[0], apiBase });
     }
   } else if (href.startsWith('http://') || href.startsWith('https://')) {
     showPicker(e, { type: 'external', title: href, url: href });
   } else if (!href.startsWith('#')) {
-    const full = WIKI_BASE + href;
+    const full = apiBase + href;
     showPicker(e, { type: 'external', title: full, url: full });
   }
 }
@@ -878,7 +893,7 @@ function renderStack() {
       <button class="del-btn" title="削除">✕</button>`;
     div.querySelector('.item-body').addEventListener('click', e => {
       if (item.type === 'wikipedia') {
-        showPicker(e, { type: 'wiki', title: item.title });
+        showPicker(e, { type: 'wiki', title: item.title, apiBase: item.apiBase });
       } else {
         window.open(item.url, '_blank');
       }
@@ -957,6 +972,11 @@ function closeSettings() {
   document.getElementById('settings-overlay').style.display = 'none';
 }
 
+function srcTag(s) {
+  if (s.kind === 'mediawiki') return 'API: ' + s.apiBase.replace(/^https?:\/\//, '');
+  return s.site || '';
+}
+
 function renderSettings() {
   // Presets
   const pl = document.getElementById('preset-list');
@@ -967,7 +987,7 @@ function renderSettings() {
     const checked = srcSettings.presetEnabled[s.id] ? 'checked' : '';
     div.innerHTML = `
       <input type="checkbox" id="p-${s.id}" ${checked}>
-      <label for="p-${s.id}">${esc(s.name)} <span class="site-tag">${esc(s.site)}</span></label>`;
+      <label for="p-${s.id}">${esc(s.name)} <span class="site-tag">${esc(srcTag(s))}</span></label>`;
     div.querySelector('input').addEventListener('change', ev => {
       srcSettings.presetEnabled[s.id] = ev.target.checked;
       saveSrcSettings();

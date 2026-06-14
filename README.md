@@ -1,8 +1,8 @@
 # trailviewer 🧭 思索の足跡
 
-複数の記事を**並べて同時に読む**ための、単一HTMLファイルで動く Wikipedia / 百科事典ビューアです。Wikipedia のページを画面内に展開しながらリンクをたどり、たどった経路を「足跡スタック」として記録・書き出しできます。
+複数の記事を**並べて同時に読む**ための、単一HTMLファイルで動く Wikipedia / 百科事典ビューアです。記事を画面内に展開しながらリンクをたどり、たどった経路を「足跡スタック」として記録・書き出しできます。
 
-`trailviewer.html`（旧 `wikipedia-trail.html`）をブラウザで開くだけで動作します。インストールやサーバーは不要です。
+`trailviewer.html` をブラウザで開くだけで動作します。インストールやサーバーは不要です。
 
 ---
 
@@ -26,38 +26,43 @@
 選んだ枠にリンク先が展開されます。
 
 ### 検索対象の切り替え
-検索窓の左のプルダウンで検索ソースを選べます。
+検索窓の左のプルダウンで検索ソースを選べます。選択した検索ソースは**検索のたびにリセットされず保持**されます。
 
-- **Wikipedia** … 公式APIで取得し、画面内にページを展開（リンクをたどれます）。
-- **それ以外** … `site:` 指定付きの Google 検索結果を画面内（iframe）に表示。
-  - 選択した検索ソースは**検索のたびにリセットされず保持**されます。
+ソースには2つの種類があります。
 
-プリセット（初期ON）:
+- **API型（MediaWiki）** … 公式APIで本文HTMLを取得し、画面内に展開。Wikipedia同様に**リンクをたどって表示先を選べ、足跡も記録**されます。
+- **iframe型（Google `site:` 検索）** … `site:` 指定付きの Google 検索結果を画面内に表示。検索時に選んだ枠に固定され、**枠内リンクはクロスオリジン制約により追跡できません**（足跡は検索時のみ記録）。
 
-| ソース | 検索対象 |
-|--------|----------|
-| Wikipedia | ja.wikipedia.org |
-| 千夜千冊 | `site:1000ya.isis.ne.jp` |
-| 世界史の窓 | `site:www.y-history.net` |
+#### プリセット一覧
 
-プリセット（初期OFF・設定で有効化）:
+**API型（MediaWiki）**
 
-| ソース | 検索対象 |
-|--------|----------|
-| WIRED | `site:wired.jp` |
-| Qiita | `site:qiita.com` |
-| Note | `site:note.com` |
-| アリストテレスの本棚 | `site:aristoteles-bookshelf.com` |
-| ブリタニカ | `site:britannica.com` |
-| スタンフォード哲学百科 | `site:plato.stanford.edu` |
-| 国立国会図書館デジタル | `site:dl.ndl.go.jp` |
-| みんなの日本語教育 | `site:www.nhk.or.jp` |
-| 日経ビジネス | `site:business.nikkei.com` |
+| ソース | API基盤 | 初期状態 |
+|--------|---------|----------|
+| Wikipedia（日） | ja.wikipedia.org | ON |
+| Wikipedia（英） | en.wikipedia.org | OFF |
+| ウィクショナリー（日） | ja.wiktionary.org | OFF |
+
+**iframe型（Google `site:` 検索）**
+
+| ソース | 検索対象 | 初期状態 |
+|--------|----------|----------|
+| 千夜千冊 | `site:1000ya.isis.ne.jp` | ON |
+| 世界史の窓 | `site:www.y-history.net` | ON |
+| WIRED | `site:wired.jp` | OFF |
+| アリストテレスの本棚 | `site:aristoteles-bookshelf.com` | OFF |
+| ブリタニカ | `site:britannica.com` | OFF |
+| スタンフォード哲学百科 | `site:plato.stanford.edu` | OFF |
+| 国立国会図書館デジタル | `site:dl.ndl.go.jp` | OFF |
+| みんなの日本語教育 | `site:www.nhk.or.jp` | OFF |
+| 日経ビジネス | `site:business.nikkei.com` | OFF |
+
+> ※ Qiita / Note は `X-Frame-Options` 等によりフレーム内表示が拒否されるため、プリセットから除外しています。
 
 ### 検索ソースの追加・管理
 ヘッダーの **⚙ 設定**から:
 - 各プリセットを**チェックボックスでON/OFF**。
-- **カスタムソースを追加**（名前 + `site:example.com`）／削除。
+- **カスタムソースを追加**（名前 + `site:example.com`）／削除。カスタムは iframe型（Google検索）として登録されます。
 
 設定内容はブラウザの `localStorage` に保存され、次回以降も保持されます。
 
@@ -68,6 +73,7 @@
 - **💾 CSV** … `足跡_YYYYMMDD.csv` として書き出し。
 - **🗑** … 全消去。
 - **📋 本文コピー**（記事画面上部）… 表示中ページの本文をコピー。
+- スマートフォンではヘッダーの 📋 ボタンで表示／非表示を切り替え（枠外タップでも閉じます）。
 
 ### ダークテーマ
 OS／ブラウザの `prefers-color-scheme` に追従し、ダークモード時は自動でダークテーマになります。
@@ -79,18 +85,18 @@ OS／ブラウザの `prefers-color-scheme` に追従し、ダークモード時
 1. `trailviewer.html` をブラウザ（Chrome / Edge / Firefox など）で開く。
 2. 検索ソースを選び、キーワードを入力して **検索**。
 3. 表示先（全画面／分割）を選ぶ。
-4. Wikipedia ではページ内リンクをクリックして、好きな枠に展開しながら読み進める。
+4. API型ソースではページ内リンクをクリックして、好きな枠に展開しながら読み進める。
 5. 経路は足跡スタックに自動記録され、コピー／CSV出力できる。
 
 ---
 
 ## 制約・既知の仕様
 
-- **非Wikipediaソースのページ内リンクは表示先を選べません。**
-  iframe 内は別オリジン（Google や外部サイト）のため、同一オリジンポリシーによりリンククリックへ割り込めません。検索時に選んだ表示枠に固定され、枠内のリンクはそのまま遷移（または新タブ）します。Wikipedia だけ枠を選べるのは、公式APIで取得したHTMLを**自分のページ内に展開**しているためです。
-- 非Wikipediaの検索表示には Google 検索の `igu=1`（フレーム埋め込み許可）を使用しています。Google 側の仕様変更で表示できなくなる可能性があります。
-- Qiita / Note など `X-Frame-Options` で埋め込みを拒否するサイトは、結果リンクから先がフレーム内に表示されない場合があります。
-- ネットワーク接続が必要です（Wikipedia API・各サイトへアクセスします）。
+- **iframe型ソースのページ内リンクは表示先を選べません／足跡に残りません。**
+  iframe 内は別オリジンのため、同一オリジンポリシーによりリンククリックへ割り込めません。API型（MediaWiki）だけ枠を選べるのは、公式APIで取得したHTMLを**自分のページ内に展開**しているためです。
+- iframe型の検索表示には Google 検索の `igu=1`（フレーム埋め込み許可）を使用しています。Google 側の仕様変更で表示できなくなる可能性があります。
+- API型に追加できるのは、CORS（`origin=*`）対応の MediaWiki 系サイトです。Wikimedia系（各言語Wikipedia・Wiktionary・Wikiquote等）は `apiBase` を足すだけで増やせます。
+- ネットワーク接続が必要です。
 
 ---
 
