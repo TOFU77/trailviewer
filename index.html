@@ -344,10 +344,29 @@
       .add-row input { background: #1e1f22; color: #e0e0e0; border-color: #4a4b4e; }
     }
 
+    /* スタック表示切替ボタンはデスクトップでは隠す */
+    #stack-toggle-btn { display: none; }
+
     /* ===== Responsive ===== */
     @media (max-width: 640px) {
       #header h1 { display: none; }
-      #sidebar { width: 180px; }
+      #stack-toggle-btn { display: inline-block; }
+
+      /* モバイルではサイドバーを常時非表示にし、ボタンでオーバーレイ表示 */
+      #sidebar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 75vw;
+        max-width: 280px;
+        z-index: 1500;
+        transform: translateX(100%);
+        transition: transform .2s ease;
+        box-shadow: -3px 0 12px rgba(0,0,0,.25);
+      }
+      body.show-stack #sidebar { transform: translateX(0); }
+
       .wiki-content .infobox,
       .wiki-content .wikitable,
       .wiki-content .thumb { float: none; max-width: 100%; margin: 6px 0; }
@@ -369,6 +388,7 @@
     <button class="layout-btn"        data-n="3" title="3分割">■□□</button>
   </div>
 
+  <button id="stack-toggle-btn" title="足跡スタックの表示切替">📋</button>
   <button id="settings-btn" title="検索ソース設定">⚙</button>
 </div>
 
@@ -889,6 +909,10 @@ async function copyPageText(panelIdx) {
 /* =====================================================================
    SETTINGS
 ===================================================================== */
+document.getElementById('stack-toggle-btn').addEventListener('click', () => {
+  document.body.classList.toggle('show-stack');
+});
+
 document.getElementById('settings-btn').addEventListener('click', openSettings);
 document.getElementById('close-settings-btn').addEventListener('click', closeSettings);
 document.getElementById('settings-overlay').addEventListener('click', e => {
