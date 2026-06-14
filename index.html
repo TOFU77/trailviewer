@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>思索の足跡</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; height: 100vh; background: #fff; overflow: hidden; }
+
+    /* ===== Header ===== */
+    #header {
+      padding: 7px 10px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    #header h1 { font-size: 14px; color: #333; white-space: nowrap; }
+
+    #layout-btns { display: flex; gap: 2px; }
+    .layout-btn {
+      padding: 4px 7px;
+      font-size: 11px;
+      font-family: monospace;
+      letter-spacing: 1px;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+    }
+    .layout-btn:hover { background: #e8e8e8; }
+    .layout-btn.active { background: #3366cc; color: white; border-color: #3366cc; }
+
+    #search-input {
+      flex: 1;
+      min-width: 100px;
+      padding: 5px 9px;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #source-select {
+      padding: 5px 5px;
+      font-size: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      max-width: 120px;
+    }
+
+    button {
+      padding: 5px 10px;
+      font-size: 12px;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button:hover { background: #e8e8e8; }
+    button.primary { background: #3366cc; color: white; border-color: #3366cc; }
+    button.primary:hover { background: #2a55aa; }
+    button.danger { border-color: #c00; color: #c00; }
+    button.danger:hover { background: #fff0f0; }
+
+    /* ===== Main ===== */
+    #main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ===== Panels ===== */
+    #panels-container { flex: 1; display: flex; overflow: hidden; min-width: 0; }
+
+    .panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #ddd;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .panel:last-child { border-right: none; }
+    .panel.hidden { display: none; }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      background: #f0f4f8;
+      border-bottom: 1px solid #ddd;
+      flex-shrink: 0;
+      min-height: 26px;
+    }
+    .panel-title {
+      flex: 1;
+      font-size: 11px;
+      color: #555;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .panel-close {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: #bbb;
+      font-size: 13px;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+    }
+    .panel-close:hover { color: #c00; background: none; }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 14px;
+    }
+    .panel-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 80px;
+      color: #ccc;
+      font-size: 13px;
+    }
+    .panel-loading { display: none; padding: 16px; text-align: center; color: #888; font-size: 13px; }
+
+    .panel-frame { flex: 1; width: 100%; border: none; display: none; }
+    .panel.show-frame .panel-content { display: none; }
+    .panel.show-frame .panel-frame { display: block; }
+
+    /* ===== Search Results ===== */
+    .search-results { list-style: none; margin-bottom: 10px; }
+    .search-results li {
+      padding: 7px 11px;
+      cursor: pointer;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      color: #0645ad;
+      font-size: 13px;
+    }
+    .search-results li:hover { background: #eaf0fb; border-color: #3366cc; }
+
+    /* ===== Wiki Content ===== */
+    .wiki-content { font-size: 13px; line-height: 1.6; color: #202122; }
+    .wiki-content h1 { font-size: 19px; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 12px 0 7px; }
+    .wiki-content h2 { font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 3px; margin: 11px 0 5px; }
+    .wiki-content h3 { font-size: 13px; margin: 9px 0 4px; }
+    .wiki-content p { margin-bottom: 7px; }
+    .wiki-content a { color: #0645ad; text-decoration: none; cursor: pointer; }
+    .wiki-content a:hover { text-decoration: underline; }
+    .wiki-content table { border-collapse: collapse; margin: 8px 0; max-width: 100%; font-size: 12px; }
+    .wiki-content th, .wiki-content td { border: 1px solid #ccc; padding: 3px 6px; }
+    .wiki-content th { background: #eaecf0; }
+    .wiki-content img { max-width: 100%; height: auto; }
+    .wiki-content ul, .wiki-content ol { margin: 5px 0 5px 18px; }
+    .wiki-content li { margin-bottom: 2px; }
+    .wiki-content .infobox, .wiki-content .wikitable { float: right; margin: 0 0 10px 10px; max-width: 220px; }
+    .wiki-content .thumb { float: right; margin: 0 0 10px 10px; max-width: 190px; font-size: 11px; }
+    .wiki-content .mw-editsection { display: none; }
+    .wiki-content sup { font-size: 10px; }
+
+    .page-toolbar { display: none; margin-bottom: 7px; }
+
+    /* ===== Sidebar ===== */
+    #sidebar {
+      width: 230px;
+      flex-shrink: 0;
+      border-left: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+      background: #fafafa;
+    }
+    #sidebar-header { padding: 7px 8px; border-bottom: 1px solid #ddd; background: #f0f0f0; }
+    #sidebar-header .title { font-size: 12px; font-weight: bold; color: #333; margin-bottom: 5px; }
+    #sidebar-header .buttons { display: flex; gap: 4px; }
+    #sidebar-header .buttons button { flex: 1; font-size: 11px; padding: 3px 5px; }
+
+    #stack-list { flex: 1; overflow-y: auto; padding: 5px; }
+    .stack-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 5px 7px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-bottom: 3px;
+      background: white;
+      border: 1px solid #e0e0e0;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .stack-item:hover { background: #eaf0fb; border-color: #3366cc; }
+    .stack-item .item-body { flex: 1; min-width: 0; }
+    .stack-item .num { color: #999; font-size: 10px; margin-right: 2px; }
+    .stack-item .item-title { color: #0645ad; word-break: break-all; }
+    .stack-item.external .item-title { color: #888; font-style: italic; }
+    .stack-item .item-time { color: #aaa; font-size: 10px; margin-top: 1px; }
+    .stack-item .del-btn {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: #ddd;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 0 1px;
+    }
+    .stack-item .del-btn:hover { color: #c00; background: none; }
+    #stack-empty { padding: 14px; text-align: center; color: #bbb; font-size: 12px; }
+
+    /* ===== Panel Picker ===== */
+    #panel-picker {
+      position: fixed;
+      z-index: 1000;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 7px;
+      padding: 9px 10px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.18);
+      display: none;
+    }
+    #panel-picker .pp-title { font-size: 11px; color: #666; margin-bottom: 6px; }
+    #panel-picker .pp-note { display: none; font-size: 10px; color: #c80; line-height: 1.4; margin-bottom: 7px; max-width: 200px; }
+    #panel-picker .pp-row { display: flex; gap: 4px; margin-bottom: 4px; }
+    #panel-picker .pp-btn {
+      padding: 5px 9px;
+      font-family: monospace;
+      font-size: 12px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      background: white;
+    }
+    #panel-picker .pp-btn:hover { background: #3366cc; color: white; border-color: #3366cc; }
+    #panel-picker .pp-cancel {
+      display: block;
+      width: 100%;
+      margin-top: 5px;
+      text-align: center;
+      font-size: 11px;
+      color: #aaa;
+      cursor: pointer;
+    }
+    #panel-picker .pp-cancel:hover { color: #555; }
+
+    /* ===== Settings Modal ===== */
+    #settings-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.3);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #settings-modal {
+      background: white;
+      border-radius: 8px;
+      padding: 18px 20px;
+      width: 460px;
+      max-width: 95vw;
+      max-height: 82vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 28px rgba(0,0,0,.22);
+    }
+    #settings-modal h2 { font-size: 15px; margin-bottom: 11px; }
+    #settings-modal h3 { font-size: 12px; color: #666; margin: 12px 0 5px; text-transform: uppercase; letter-spacing: .5px; }
+    .src-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid #f2f2f2;
+      font-size: 13px;
+    }
+    .src-item label { flex: 1; cursor: pointer; }
+    .src-item .site-tag { color: #999; font-size: 11px; font-family: monospace; }
+    .src-item .rm-btn { background: none; border: none; color: #ddd; cursor: pointer; font-size: 13px; padding: 0 2px; }
+    .src-item .rm-btn:hover { color: #c00; background: none; }
+    .add-row { display: flex; gap: 5px; margin-top: 8px; }
+    .add-row input { padding: 4px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
+    .add-row input:first-child { width: 110px; flex-shrink: 0; }
+    .add-row input:nth-child(2) { flex: 1; }
+    .settings-footer { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+    /* ===== Dark Theme (system preference) ===== */
+    @media (prefers-color-scheme: dark) {
+      body { background: #1e1f22; color: #d4d4d4; }
+
+      #header { background: #2a2b2e; border-bottom-color: #3a3b3e; }
+      #header h1 { color: #ddd; }
+      #search-input, #source-select { background: #1e1f22; color: #e0e0e0; border-color: #4a4b4e; }
+      #search-input::placeholder { color: #888; }
+
+      button { background: #34353a; color: #ddd; border-color: #4a4b4e; }
+      button:hover { background: #404148; }
+      button.primary { background: #3b6cd4; color: #fff; border-color: #3b6cd4; }
+      button.primary:hover { background: #4c7ce0; }
+      button.danger { border-color: #e06b6b; color: #e06b6b; }
+      button.danger:hover { background: #3a2a2a; }
+      .layout-btn { background: #34353a; color: #ddd; border-color: #4a4b4e; }
+      .layout-btn:hover { background: #404148; }
+      .layout-btn.active { background: #3b6cd4; color: #fff; border-color: #3b6cd4; }
+
+      .panel { border-right-color: #3a3b3e; }
+      .panel-header { background: #2a2d31; border-bottom-color: #3a3b3e; }
+      .panel-title { color: #aaa; }
+      .panel-empty, .panel-loading { color: #777; }
+
+      .search-results li { background: #26272a; border-color: #3a3b3e; color: #6ea8ff; }
+      .search-results li:hover { background: #2f3540; border-color: #3b6cd4; }
+
+      .wiki-content { color: #d4d4d4; }
+      .wiki-content a { color: #6ea8ff; }
+      .wiki-content h1 { border-bottom-color: #3a3b3e; }
+      .wiki-content h2 { border-bottom-color: #333; }
+      .wiki-content th, .wiki-content td { border-color: #4a4b4e; }
+      .wiki-content th { background: #2f3033; }
+      .wiki-content img { opacity: .92; }
+
+      #sidebar { background: #232427; border-left-color: #3a3b3e; }
+      #sidebar-header { background: #2a2b2e; border-bottom-color: #3a3b3e; }
+      #sidebar-header .title { color: #ddd; }
+      .stack-item { background: #26272a; border-color: #3a3b3e; }
+      .stack-item:hover { background: #2f3540; border-color: #3b6cd4; }
+      .stack-item .item-title { color: #6ea8ff; }
+      .stack-item.external .item-title { color: #999; }
+      #stack-empty, .stack-item .num, .stack-item .item-time { color: #777; }
+
+      #panel-picker { background: #2a2b2e; border-color: #4a4b4e; }
+      #panel-picker .pp-title { color: #aaa; }
+      #panel-picker .pp-btn { background: #34353a; color: #ddd; border-color: #4a4b4e; }
+      #panel-picker .pp-btn:hover { background: #3b6cd4; color: #fff; border-color: #3b6cd4; }
+
+      #settings-modal { background: #2a2b2e; color: #d4d4d4; }
+      #settings-modal h3 { color: #999; }
+      .src-item { border-bottom-color: #3a3b3e; }
+      .src-item .site-tag { color: #888; }
+      .add-row input { background: #1e1f22; color: #e0e0e0; border-color: #4a4b4e; }
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 640px) {
+      #header h1 { display: none; }
+      #sidebar { width: 180px; }
+      .wiki-content .infobox,
+      .wiki-content .wikitable,
+      .wiki-content .thumb { float: none; max-width: 100%; margin: 6px 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <h1>🧭 思索の足跡</h1>
+
+  <select id="source-select"></select>
+  <input id="search-input" type="text" placeholder="検索…">
+  <button class="primary" id="search-btn">検索</button>
+
+  <div id="layout-btns">
+    <button class="layout-btn active" data-n="1" title="全画面">■</button>
+    <button class="layout-btn"        data-n="2" title="2分割">■□</button>
+    <button class="layout-btn"        data-n="3" title="3分割">■□□</button>
+  </div>
+
+  <button id="settings-btn" title="検索ソース設定">⚙</button>
+</div>
+
+<div id="main">
+  <div id="panels-container">
+    <!-- 3 panels always in DOM; hidden class controls visibility -->
+    <div class="panel" data-idx="0">
+      <div class="panel-header">
+        <span class="panel-title"></span>
+        <button class="panel-close" title="クリア">✕</button>
+      </div>
+      <div class="panel-content">
+        <div class="panel-loading">読み込み中…</div>
+        <ul class="search-results"></ul>
+        <div class="page-toolbar"><button class="copy-page-btn">📋 本文コピー</button></div>
+        <div class="wiki-content"></div>
+      </div>
+      <iframe class="panel-frame" frameborder="0"></iframe>
+    </div>
+    <div class="panel hidden" data-idx="1">
+      <div class="panel-header">
+        <span class="panel-title"></span>
+        <button class="panel-close" title="クリア">✕</button>
+      </div>
+      <div class="panel-content">
+        <div class="panel-loading">読み込み中…</div>
+        <ul class="search-results"></ul>
+        <div class="page-toolbar"><button class="copy-page-btn">📋 本文コピー</button></div>
+        <div class="wiki-content"></div>
+      </div>
+      <iframe class="panel-frame" frameborder="0"></iframe>
+    </div>
+    <div class="panel hidden" data-idx="2">
+      <div class="panel-header">
+        <span class="panel-title"></span>
+        <button class="panel-close" title="クリア">✕</button>
+      </div>
+      <div class="panel-content">
+        <div class="panel-loading">読み込み中…</div>
+        <ul class="search-results"></ul>
+        <div class="page-toolbar"><button class="copy-page-btn">📋 本文コピー</button></div>
+        <div class="wiki-content"></div>
+      </div>
+      <iframe class="panel-frame" frameborder="0"></iframe>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <div class="title">📋 足跡スタック</div>
+      <div class="buttons">
+        <button id="copy-stack-btn">📋 コピー</button>
+        <button id="save-csv-btn">💾 CSV</button>
+        <button class="danger" id="clear-stack-btn">🗑</button>
+      </div>
+    </div>
+    <div id="stack-list">
+      <div id="stack-empty">まだ足跡がありません</div>
+    </div>
+  </div>
+</div>
+
+<!-- Panel Picker -->
+<div id="panel-picker">
+  <div class="pp-title">どこに開きますか？</div>
+  <div class="pp-note" id="pp-note">※ Wikipedia以外では、ここで選んだ表示枠で固定されます（枠内のリンクは選択できません）</div>
+  <div class="pp-row">
+    <button class="pp-btn" data-layout="1" data-panel="0" title="全画面">■</button>
+  </div>
+  <div class="pp-row">
+    <button class="pp-btn" data-layout="2" data-panel="0" title="2分割・左">■□</button>
+    <button class="pp-btn" data-layout="2" data-panel="1" title="2分割・右">□■</button>
+  </div>
+  <div class="pp-row">
+    <button class="pp-btn" data-layout="3" data-panel="0" title="3分割・左">■□□</button>
+    <button class="pp-btn" data-layout="3" data-panel="1" title="3分割・中">□■□</button>
+    <button class="pp-btn" data-layout="3" data-panel="2" title="3分割・右">□□■</button>
+  </div>
+  <span class="pp-cancel">キャンセル</span>
+</div>
+
+<!-- Settings -->
+<div id="settings-overlay">
+  <div id="settings-modal">
+    <h2>⚙ 検索ソースの設定</h2>
+    <h3>プリセット</h3>
+    <div id="preset-list"></div>
+    <h3>カスタム</h3>
+    <div id="custom-list"></div>
+    <div class="add-row">
+      <input id="new-name" placeholder="名前">
+      <input id="new-site" placeholder="site:example.com">
+      <button id="add-src-btn">追加</button>
+    </div>
+    <div class="settings-footer">
+      <button id="close-settings-btn">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   CONSTANTS & PRESETS
+===================================================================== */
+const WIKI_BASE = 'https://ja.wikipedia.org';
+
+const PRESET_SOURCES = [
+  { id: 'wikipedia',    name: 'Wikipedia',           site: '',                               defaultOn: true  },
+  { id: 'sennyasensatsu', name: '千夜千冊',          site: 'site:1000ya.isis.ne.jp',         defaultOn: true  },
+  { id: 'sekaishi',     name: '世界史の窓',          site: 'site:www.y-history.net',         defaultOn: true  },
+  { id: 'wired',        name: 'WIRED',               site: 'site:wired.jp',                  defaultOn: false },
+  { id: 'qiita',        name: 'Qiita',               site: 'site:qiita.com',                 defaultOn: false },
+  { id: 'note',         name: 'Note',                site: 'site:note.com',                  defaultOn: false },
+  { id: 'aristoteles',  name: 'アリストテレスの本棚', site: 'site:aristoteles-bookshelf.com', defaultOn: false },
+  { id: 'britannica',   name: 'ブリタニカ',          site: 'site:britannica.com',            defaultOn: false },
+  { id: 'stanford',     name: 'スタンフォード哲学百科', site: 'site:plato.stanford.edu',      defaultOn: false },
+  { id: 'ndl',          name: '国立国会図書館デジタル', site: 'site:dl.ndl.go.jp',            defaultOn: false },
+  { id: 'minnichi',     name: 'みんなの日本語教育',   site: 'site:www.nhk.or.jp',             defaultOn: false },
+  { id: 'nikkeibiz',    name: '日経ビジネス',         site: 'site:business.nikkei.com',       defaultOn: false },
+];
+
+/* =====================================================================
+   STATE
+===================================================================== */
+let layout = 1;
+// panelState[0..2]: {title: string} | null
+const panelState = [null, null, null];
+const stack = [];
+let pendingAction = null; // {type:'wiki'|'external', title, url}
+
+/* =====================================================================
+   SOURCE SETTINGS (localStorage)
+===================================================================== */
+function loadSrcSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('srcSettings') || 'null');
+    if (s && s.presetEnabled && s.custom) {
+      // 新規追加されたプリセットを既定値で補完
+      PRESET_SOURCES.forEach(p => {
+        if (!(p.id in s.presetEnabled)) s.presetEnabled[p.id] = p.defaultOn;
+      });
+      return s;
+    }
+  } catch(_) {}
+  return {
+    presetEnabled: Object.fromEntries(PRESET_SOURCES.map(s => [s.id, s.defaultOn])),
+    custom: []
+  };
+}
+function saveSrcSettings() {
+  localStorage.setItem('srcSettings', JSON.stringify(srcSettings));
+}
+let srcSettings = loadSrcSettings();
+
+function enabledSources() {
+  const list = [];
+  PRESET_SOURCES.forEach(s => { if (srcSettings.presetEnabled[s.id]) list.push(s); });
+  (srcSettings.custom || []).forEach(c => { if (c.enabled) list.push(c); });
+  return list;
+}
+
+function buildSourceDropdown() {
+  const sel = document.getElementById('source-select');
+  const prev = sel.value || localStorage.getItem('lastSrc') || 'wikipedia';
+  sel.innerHTML = '';
+  enabledSources().forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.id;
+    o.textContent = s.name;
+    if (s.id === prev) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+document.getElementById('source-select').addEventListener('change', () => {
+  localStorage.setItem('lastSrc', document.getElementById('source-select').value);
+});
+
+/* =====================================================================
+   LAYOUT
+===================================================================== */
+function setLayout(n) {
+  layout = n;
+  document.querySelectorAll('.layout-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.n) === n);
+  });
+  document.querySelectorAll('.panel').forEach(panel => {
+    const idx = parseInt(panel.dataset.idx);
+    panel.classList.toggle('hidden', idx >= n);
+    // show/hide close button only in split mode
+    panel.querySelector('.panel-close').style.display = (n > 1) ? '' : 'none';
+  });
+}
+
+document.getElementById('layout-btns').addEventListener('click', e => {
+  const btn = e.target.closest('.layout-btn');
+  if (btn) setLayout(parseInt(btn.dataset.n));
+});
+
+/* =====================================================================
+   PANEL UTILITIES
+===================================================================== */
+function panelEl(idx) {
+  return document.querySelector(`.panel[data-idx="${idx}"]`);
+}
+function panelContent(idx) {
+  return panelEl(idx).querySelector('.panel-content');
+}
+function setLoading(idx, flag) {
+  panelContent(idx).querySelector('.panel-loading').style.display = flag ? 'block' : 'none';
+}
+function setPanelTitle(idx, title) {
+  panelState[idx] = title ? { title } : null;
+  panelEl(idx).querySelector('.panel-title').textContent = title || '';
+}
+function clearPanel(idx) {
+  setPanelTitle(idx, '');
+  const el = panelEl(idx);
+  el.classList.remove('show-frame');
+  const frame = el.querySelector('.panel-frame');
+  frame.removeAttribute('src');
+  const pc = panelContent(idx);
+  pc.querySelector('.search-results').innerHTML = '';
+  pc.querySelector('.page-toolbar').style.display = 'none';
+  pc.querySelector('.wiki-content').innerHTML = '';
+  pc.querySelector('.panel-loading').style.display = 'none';
+}
+
+function loadIframe(idx, url, title) {
+  if (idx >= layout) setLayout(idx + 1);
+  clearPanel(idx);
+  setPanelTitle(idx, title);
+  const el = panelEl(idx);
+  el.querySelector('.panel-frame').src = url;
+  el.classList.add('show-frame');
+  pushToStack({ type: 'external', title, url });
+}
+
+// Wire up close buttons
+document.querySelectorAll('.panel-close').forEach(btn => {
+  const idx = parseInt(btn.closest('.panel').dataset.idx);
+  btn.addEventListener('click', () => clearPanel(idx));
+});
+
+// Wire up copy-page buttons
+document.querySelectorAll('.copy-page-btn').forEach(btn => {
+  const idx = parseInt(btn.closest('.panel').dataset.idx);
+  btn.addEventListener('click', () => copyPageText(idx));
+});
+
+/* =====================================================================
+   PANEL PICKER
+===================================================================== */
+const picker = document.getElementById('panel-picker');
+
+function showPicker(e, action) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  pendingAction = action;
+  document.getElementById('pp-note').style.display = (action.type === 'iframe') ? 'block' : 'none';
+  picker.style.display = 'block';
+  // 座標が無い場合（Enterキー等）は検索ボタン付近に表示
+  let cx, cy;
+  if (e && typeof e.clientX === 'number' && (e.clientX || e.clientY)) {
+    cx = e.clientX + 4; cy = e.clientY + 6;
+  } else {
+    const r = document.getElementById('search-btn').getBoundingClientRect();
+    cx = r.left; cy = r.bottom + 4;
+  }
+  picker.style.left = Math.min(cx, window.innerWidth - 200) + 'px';
+  picker.style.top  = Math.min(cy, window.innerHeight - 200) + 'px';
+}
+
+function closePicker() {
+  picker.style.display = 'none';
+  pendingAction = null;
+}
+
+picker.querySelectorAll('.pp-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const newLayout = parseInt(btn.dataset.layout);
+    const panelIdx  = parseInt(btn.dataset.panel);
+    const act = pendingAction;   // capture BEFORE closePicker() nulls it
+    closePicker();
+    if (!act) return;
+    if (newLayout !== layout) setLayout(newLayout);
+    if (act.type === 'wiki') {
+      loadPage(act.title, panelIdx);
+    } else if (act.type === 'wikisearch') {
+      if (panelIdx >= layout) setLayout(panelIdx + 1);
+      doWikiSearch(act.query, panelIdx);
+    } else if (act.type === 'iframe') {
+      loadIframe(panelIdx, act.url, act.title);
+    } else {
+      pushToStack({ type: 'external', title: act.title, url: act.url });
+      window.open(act.url, '_blank');
+    }
+  });
+});
+
+picker.querySelector('.pp-cancel').addEventListener('click', closePicker);
+
+document.addEventListener('click', e => {
+  if (picker.style.display === 'block' && !picker.contains(e.target)) closePicker();
+});
+
+/* =====================================================================
+   SEARCH
+===================================================================== */
+document.getElementById('search-btn').addEventListener('click', doSearch);
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch(e);
+});
+
+function doSearch(e) {
+  const query = document.getElementById('search-input').value.trim();
+  if (!query) return;
+  const srcId = document.getElementById('source-select').value;
+
+  if (srcId === 'wikipedia') {
+    // 全文一致でなく候補リストを出すため、まず開く先のパネルを選ばせる
+    showPicker(e, { type: 'wikisearch', query });
+  } else {
+    const src = [...PRESET_SOURCES, ...(srcSettings.custom || [])].find(s => s.id === srcId);
+    if (!src) return;
+    const url = `https://www.google.com/search?igu=1&q=${encodeURIComponent(query + ' ' + src.site)}`;
+    showPicker(e, { type: 'iframe', url, title: `${src.name}：${query}` });
+  }
+}
+
+async function doWikiSearch(query, panelIdx) {
+  clearPanel(panelIdx);
+  setLoading(panelIdx, true);
+  try {
+    const url = `${WIKI_BASE}/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=10&format=json&origin=*`;
+    const data = await fetch(url).then(r => r.json());
+    const titles = data[1];
+    const ul = panelContent(panelIdx).querySelector('.search-results');
+    if (!titles.length) {
+      ul.innerHTML = '<li style="color:#999;cursor:default;">候補が見つかりませんでした</li>';
+    } else {
+      titles.forEach(title => {
+        const li = document.createElement('li');
+        li.textContent = title;
+        li.addEventListener('click', e => showPicker(e, { type: 'wiki', title }));
+        ul.appendChild(li);
+      });
+    }
+  } catch(_) {
+    showErr(panelIdx, '検索に失敗しました。ネットワーク接続を確認してください。');
+  } finally {
+    setLoading(panelIdx, false);
+  }
+}
+
+/* =====================================================================
+   PAGE LOAD
+===================================================================== */
+async function loadPage(title, panelIdx) {
+  // If needed, extend layout
+  if (panelIdx >= layout) setLayout(panelIdx + 1);
+  clearPanel(panelIdx);
+  setLoading(panelIdx, true);
+  try {
+    const url = `${WIKI_BASE}/w/api.php?action=parse&page=${encodeURIComponent(title)}&prop=text&format=json&origin=*&disableeditsection=1`;
+    const data = await fetch(url).then(r => r.json());
+    if (data.error) { showErr(panelIdx, `「${title}」のページが見つかりませんでした。`); return; }
+
+    const pageTitle = data.parse.title;
+    setPanelTitle(panelIdx, pageTitle);
+    pushToStack({
+      type: 'wikipedia',
+      title: pageTitle,
+      url: `${WIKI_BASE}/wiki/${encodeURIComponent(pageTitle.replace(/ /g,'_'))}`
+    });
+    renderWiki(panelIdx, data.parse.text['*']);
+  } catch(_) {
+    showErr(panelIdx, 'ページの読み込みに失敗しました。');
+  } finally {
+    setLoading(panelIdx, false);
+  }
+}
+
+function renderWiki(panelIdx, html) {
+  const pc = panelContent(panelIdx);
+  pc.querySelector('.page-toolbar').style.display = 'block';
+  const wc = pc.querySelector('.wiki-content');
+  wc.innerHTML = html;
+
+  // Fix image URLs
+  wc.querySelectorAll('img').forEach(img => {
+    const src = img.getAttribute('src');
+    if (src && src.startsWith('//')) img.src = 'https:' + src;
+    const ss = img.getAttribute('srcset');
+    if (ss) img.srcset = ss.replace(/\/\//g, 'https://');
+  });
+
+  // Intercept links
+  wc.querySelectorAll('a').forEach(a => {
+    const href = a.getAttribute('href');
+    if (!href) return;
+    // ホバー時のステータスバー表示を正しいWeb URLにする（file://由来の C:\wiki\… を防ぐ）
+    if (href.startsWith('/')) a.href = WIKI_BASE + href;
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      handleLink(e, href);
+    });
+  });
+
+  pc.scrollTop = 0;
+}
+
+function handleLink(e, href) {
+  if (href.startsWith('/wiki/')) {
+    const rawTitle = decodeURIComponent(href.replace('/wiki/', '')).replace(/_/g, ' ');
+    if (rawTitle.includes(':')) {
+      const full = WIKI_BASE + href;
+      showPicker(e, { type: 'external', title: full, url: full });
+    } else {
+      showPicker(e, { type: 'wiki', title: rawTitle.split('#')[0] });
+    }
+  } else if (href.startsWith('http://') || href.startsWith('https://')) {
+    showPicker(e, { type: 'external', title: href, url: href });
+  } else if (!href.startsWith('#')) {
+    const full = WIKI_BASE + href;
+    showPicker(e, { type: 'external', title: full, url: full });
+  }
+}
+
+function showErr(panelIdx, msg) {
+  panelContent(panelIdx).querySelector('.wiki-content').innerHTML =
+    `<p style="color:#c00;padding:10px;">${esc(msg)}</p>`;
+}
+
+/* =====================================================================
+   STACK
+===================================================================== */
+function pushToStack(item) {
+  item.timestamp = new Date();
+  stack.push(item);
+  renderStack();
+}
+
+function renderStack() {
+  const list = document.getElementById('stack-list');
+  if (!stack.length) {
+    list.innerHTML = '<div id="stack-empty">まだ足跡がありません</div>';
+    return;
+  }
+  list.innerHTML = '';
+  [...stack].reverse().forEach((item, ri) => {
+    const realIdx = stack.length - ri - 1;
+    const num = realIdx + 1;
+    const div = document.createElement('div');
+    div.className = 'stack-item' + (item.type === 'external' ? ' external' : '');
+    const t = item.timestamp.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    div.innerHTML = `
+      <div class="item-body">
+        <span class="num">${num}.</span><span class="item-title">${esc(item.title)}</span>
+        <div class="item-time">${t}</div>
+      </div>
+      <button class="del-btn" title="削除">✕</button>`;
+    div.querySelector('.item-body').addEventListener('click', e => {
+      if (item.type === 'wikipedia') {
+        showPicker(e, { type: 'wiki', title: item.title });
+      } else {
+        window.open(item.url, '_blank');
+      }
+    });
+    div.querySelector('.del-btn').addEventListener('click', () => {
+      stack.splice(realIdx, 1);
+      renderStack();
+    });
+    list.appendChild(div);
+  });
+}
+
+document.getElementById('clear-stack-btn').addEventListener('click', () => {
+  if (!stack.length) return;
+  if (!confirm('足跡スタックをクリアしますか？')) return;
+  stack.length = 0;
+  renderStack();
+});
+
+document.getElementById('copy-stack-btn').addEventListener('click', async () => {
+  if (!stack.length) { alert('スタックが空です。'); return; }
+  const text = stack.map((it, i) => `${i+1}. ${it.title}\n   ${it.url}`).join('\n');
+  await navigator.clipboard.writeText('【思索の足跡】\n' + text);
+  const btn = document.getElementById('copy-stack-btn');
+  const orig = btn.textContent; btn.textContent = '✅ コピー済';
+  setTimeout(() => { btn.textContent = orig; }, 1400);
+});
+
+document.getElementById('save-csv-btn').addEventListener('click', () => {
+  if (!stack.length) { alert('スタックが空です。'); return; }
+  const rows = [['#','タイトル','URL','種別','日時']];
+  stack.forEach((it, i) => rows.push([
+    i+1, it.title, it.url,
+    it.type === 'wikipedia' ? 'Wikipedia' : '外部',
+    it.timestamp.toLocaleString('ja-JP')
+  ]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'}));
+  const d = new Date();
+  a.download = `足跡_${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}.csv`;
+  a.click();
+});
+
+async function copyPageText(panelIdx) {
+  const wc = panelContent(panelIdx).querySelector('.wiki-content');
+  if (!wc.textContent.trim()) { alert('表示中のページがありません。'); return; }
+  const title = panelState[panelIdx]?.title || '';
+  await navigator.clipboard.writeText(`【${title}】\n\n${wc.innerText.trim()}`);
+}
+
+/* =====================================================================
+   SETTINGS
+===================================================================== */
+document.getElementById('settings-btn').addEventListener('click', openSettings);
+document.getElementById('close-settings-btn').addEventListener('click', closeSettings);
+document.getElementById('settings-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('settings-overlay')) closeSettings();
+});
+document.getElementById('add-src-btn').addEventListener('click', addCustomSource);
+
+function openSettings() {
+  renderSettings();
+  document.getElementById('settings-overlay').style.display = 'flex';
+}
+function closeSettings() {
+  document.getElementById('settings-overlay').style.display = 'none';
+}
+
+function renderSettings() {
+  // Presets
+  const pl = document.getElementById('preset-list');
+  pl.innerHTML = '';
+  PRESET_SOURCES.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'src-item';
+    const checked = srcSettings.presetEnabled[s.id] ? 'checked' : '';
+    div.innerHTML = `
+      <input type="checkbox" id="p-${s.id}" ${checked}>
+      <label for="p-${s.id}">${esc(s.name)} <span class="site-tag">${esc(s.site)}</span></label>`;
+    div.querySelector('input').addEventListener('change', ev => {
+      srcSettings.presetEnabled[s.id] = ev.target.checked;
+      saveSrcSettings();
+      buildSourceDropdown();
+    });
+    pl.appendChild(div);
+  });
+
+  // Custom
+  const cl = document.getElementById('custom-list');
+  cl.innerHTML = '';
+  const customs = srcSettings.custom || [];
+  if (!customs.length) {
+    cl.innerHTML = '<div style="color:#bbb;font-size:12px;padding:4px 0;">カスタムソースはまだありません</div>';
+  } else {
+    customs.forEach((c, i) => {
+      const div = document.createElement('div');
+      div.className = 'src-item';
+      const checked = c.enabled ? 'checked' : '';
+      div.innerHTML = `
+        <input type="checkbox" id="c-${i}" ${checked}>
+        <label for="c-${i}">${esc(c.name)} <span class="site-tag">${esc(c.site)}</span></label>
+        <button class="rm-btn" title="削除">✕</button>`;
+      div.querySelector('input').addEventListener('change', ev => {
+        srcSettings.custom[i].enabled = ev.target.checked;
+        saveSrcSettings();
+        buildSourceDropdown();
+      });
+      div.querySelector('.rm-btn').addEventListener('click', () => {
+        srcSettings.custom.splice(i, 1);
+        saveSrcSettings();
+        buildSourceDropdown();
+        renderSettings();
+      });
+      cl.appendChild(div);
+    });
+  }
+}
+
+function addCustomSource() {
+  const name = document.getElementById('new-name').value.trim();
+  const site = document.getElementById('new-site').value.trim();
+  if (!name || !site) { alert('名前とサイト (site:example.com) を入力してください。'); return; }
+  if (!srcSettings.custom) srcSettings.custom = [];
+  srcSettings.custom.push({ id: 'c' + Date.now(), name, site, enabled: true });
+  saveSrcSettings();
+  buildSourceDropdown();
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-site').value = '';
+  renderSettings();
+}
+
+/* =====================================================================
+   UTILS
+===================================================================== */
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function p2(n) { return String(n).padStart(2,'0'); }
+
+/* =====================================================================
+   INIT
+===================================================================== */
+buildSourceDropdown();
+setLayout(1); // initialize layout button states + close btn visibility
+</script>
+</body>
+</html>
