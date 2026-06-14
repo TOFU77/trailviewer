@@ -474,9 +474,11 @@
       <div class="title">📋 足跡スタック</div>
       <div class="buttons">
         <button id="copy-stack-btn">📋 コピー</button>
-        <button id="save-csv-btn">💾 CSV</button>
+        <button id="save-csv-btn">💾 保存</button>
+        <button id="load-csv-btn">📂 読込</button>
         <button class="danger" id="clear-stack-btn">🗑</button>
       </div>
+      <input id="load-csv-input" type="file" accept=".csv,text/csv" style="display:none">
     </div>
     <div id="stack-list">
       <div id="stack-empty">まだ足跡がありません</div>
@@ -937,13 +939,17 @@ document.getElementById('copy-stack-btn').addEventListener('click', async () => 
   setTimeout(() => { btn.textContent = orig; }, 1400);
 });
 
+// 末尾の _type / _apiBase / _iso は読込時の復元用（人間が読む列は #〜日時）
+const CSV_HEADER = ['#','タイトル','URL','種別','日時','_type','_apiBase','_iso'];
+
 document.getElementById('save-csv-btn').addEventListener('click', () => {
   if (!stack.length) { alert('スタックが空です。'); return; }
-  const rows = [['#','タイトル','URL','種別','日時']];
+  const rows = [CSV_HEADER.slice()];
   stack.forEach((it, i) => rows.push([
     i+1, it.title, it.url,
     it.type === 'wikipedia' ? 'Wikipedia' : '外部',
-    it.timestamp.toLocaleString('ja-JP')
+    it.timestamp.toLocaleString('ja-JP'),
+    it.type, it.apiBase || '', it.timestamp.toISOString()
   ]));
   const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const a = document.createElement('a');
@@ -952,6 +958,100 @@ document.getElementById('save-csv-btn').addEventListener('click', () => {
   a.download = `足跡_${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}.csv`;
   a.click();
 });
+
+// ---- 読込 ----
+document.getElementById('load-csv-btn').addEventListener('click', () => {
+  document.getElementById('load-csv-input').click();
+});
+document.getElementById('load-csv-input').addEventListener('change', ev => {
+  const file = ev.target.files[0];
+  ev.target.value = '';            // 同じファイルを連続選択できるようにリセット
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => importCSV(reader.result);
+  reader.onerror = () => alert('ファイルの読み込みに失敗しました。');
+  reader.readAsText(file);
+});
+
+function importCSV(text) {
+  let rows;
+  try { rows = parseCSV(text.replace(/^﻿/, '')); }
+  catch (_) { alert('CSVの解析に失敗しました。'); return; }
+  if (!rows.length) { alert('データがありません。'); return; }
+
+  // ヘッダー行を判定して列インデックスを得る
+  const header = rows[0].map(s => s.trim());
+  const looksHeader = header.includes('URL') || header.includes('_type') || header[0] === '#';
+  const body = looksHeader ? rows.slice(1) : rows;
+  const col = name => header.indexOf(name);
+  const iURL = col('URL') >= 0 ? col('URL') : 2;
+  const iTitle = col('タイトル') >= 0 ? col('タイトル') : 1;
+  const iType = col('_type'), iApi = col('_apiBase'), iIso = col('_iso'), iWhen = col('日時');
+
+  const items = [];
+  body.forEach(r => {
+    if (!r.length || !(r[iURL] || r[iTitle])) return;
+    const url = (r[iURL] || '').trim();
+    const title = (r[iTitle] || '').trim();
+    if (!title && !url) return;
+
+    // 種別の復元（機械列があれば優先、無ければURLから推測）
+    let type = iType >= 0 ? (r[iType] || '').trim() : '';
+    if (!type) {
+      if (/google\.[^/]+\/search/.test(url)) type = 'iframe';
+      else if (/\/wiki\//.test(url)) type = 'wikipedia';
+      else type = 'external';
+    }
+    const apiBase = iApi >= 0 ? (r[iApi] || '').trim() : '';
+    // Wikipediaで apiBase 列が無い場合はURLのオリジンから補完
+    let resolvedApi = apiBase;
+    if (type === 'wikipedia' && !resolvedApi && /^https?:\/\//.test(url)) {
+      try { resolvedApi = new URL(url).origin; } catch (_) {}
+    }
+    let ts = null;
+    if (iIso >= 0 && r[iIso]) { const d = new Date(r[iIso].trim()); if (!isNaN(d)) ts = d; }
+    if (!ts && iWhen >= 0 && r[iWhen]) { const d = new Date(r[iWhen].trim()); if (!isNaN(d)) ts = d; }
+    if (!ts) ts = new Date();
+
+    const it = { type, title: title || url, url };
+    if (resolvedApi) it.apiBase = resolvedApi;
+    it.timestamp = ts;
+    items.push(it);
+  });
+
+  if (!items.length) { alert('読み込める足跡がありませんでした。'); return; }
+
+  let mode = 'replace';
+  if (stack.length) {
+    mode = confirm(`現在の足跡 ${stack.length} 件に追加しますか？\n（キャンセルで置き換え）`) ? 'append' : 'replace';
+  }
+  if (mode === 'replace') stack.length = 0;
+  items.forEach(it => stack.push(it));
+  renderStack();
+}
+
+// 簡易CSVパーサ（ダブルクォート・カンマ・改行に対応）
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i+1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\r') { /* skip */ }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else field += c;
+    }
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
 
 async function copyPageText(panelIdx) {
   const wc = panelContent(panelIdx).querySelector('.wiki-content');
