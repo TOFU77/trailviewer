@@ -211,6 +211,14 @@
     }
     .stack-item .del-btn:hover { color: #c00; background: none; }
     #stack-empty { padding: 14px; text-align: center; color: #bbb; font-size: 12px; }
+    #stack-note {
+      flex-shrink: 0;
+      padding: 9px 10px;
+      border-top: 1px solid #e6e6e6;
+      color: #aaa;
+      font-size: 10px;
+      line-height: 1.5;
+    }
 
     /* ===== Panel Picker ===== */
     #panel-picker {
@@ -331,6 +339,7 @@
       .stack-item .item-title { color: #6ea8ff; }
       .stack-item.external .item-title { color: #999; }
       #stack-empty, .stack-item .num, .stack-item .item-time { color: #777; }
+      #stack-note { color: #777; border-top-color: #3a3b3e; }
 
       #panel-picker { background: #2a2b2e; border-color: #4a4b4e; }
       #panel-picker .pp-title { color: #aaa; }
@@ -346,6 +355,7 @@
 
     /* スタック表示切替ボタンはデスクトップでは隠す */
     #stack-toggle-btn { display: none; }
+    #stack-backdrop { display: none; }
 
     /* ===== Responsive ===== */
     @media (max-width: 640px) {
@@ -366,6 +376,14 @@
         box-shadow: -3px 0 12px rgba(0,0,0,.25);
       }
       body.show-stack #sidebar { transform: translateX(0); }
+
+      body.show-stack #stack-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 1400;
+        background: rgba(0,0,0,.25);
+      }
 
       .wiki-content .infobox,
       .wiki-content .wikitable,
@@ -436,6 +454,8 @@
     </div>
   </div>
 
+  <div id="stack-backdrop"></div>
+
   <div id="sidebar">
     <div id="sidebar-header">
       <div class="title">📋 足跡スタック</div>
@@ -447,6 +467,10 @@
     </div>
     <div id="stack-list">
       <div id="stack-empty">まだ足跡がありません</div>
+    </div>
+    <div id="stack-note">
+      ※ Wikipediaのページ遷移は記録されます。<br>
+      Wikipedia以外（外部サイト）の枠内リンクは、ブラウザのクロスオリジン制約により遷移を取得できず、足跡に残りません。
     </div>
   </div>
 </div>
@@ -909,15 +933,12 @@ async function copyPageText(panelIdx) {
 /* =====================================================================
    SETTINGS
 ===================================================================== */
-document.getElementById('stack-toggle-btn').addEventListener('click', e => {
-  e.stopPropagation();
+document.getElementById('stack-toggle-btn').addEventListener('click', () => {
   document.body.classList.toggle('show-stack');
 });
 
-// スタック表示中にスタック外をタップしたら閉じる（モバイル）
-document.addEventListener('click', e => {
-  if (!document.body.classList.contains('show-stack')) return;
-  if (e.target.closest('#sidebar') || e.target.closest('#stack-toggle-btn')) return;
+// スタック外（バックドロップ）をタップしたら閉じる（モバイル）
+document.getElementById('stack-backdrop').addEventListener('click', () => {
   document.body.classList.remove('show-stack');
 });
 
